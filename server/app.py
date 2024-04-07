@@ -1,27 +1,37 @@
-# server/app.py
-#!/usr/bin/env python3
-
-from flask import Flask, make_response
-from flask_migrate import Migrate
-
-from models import db, Earthquake
+from flask import Flask, jsonify, make_response
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_serializer import SerializerMixin
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///earthquakes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.json.compact = False
 
-migrate = Migrate(app, db)
-db.init_app(app)
+db = SQLAlchemy(app)
 
+# Define the Earthquake model
+class Earthquake(db.Model, SerializerMixin):
+    __tablename__ = 'earthquakes'
+    id = db.Column(db.Integer, primary_key=True)
+    magnitude = db.Column(db.Float, nullable=False)
+    location = db.Column(db.String, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
 
-@app.route('/')
-def index():
-    body = {'message': 'Flask SQLAlchemy Lab 1'}
-    return make_response(body, 200)
+    def __repr__(self):
+        return f'<Earthquake {self.id}, {self.magnitude}, {self.location}, {self.year}>'
 
-# Add views here
-
+# Route to get an earthquake by id
+@app.route('/earthquakes/<int:id>', methods=['GET'])
+def get_earthquake(id):
+    earthquake = Earthquake.query.get(id)
+    if earthquake:
+        return jsonify({
+            'id': earthquake.id,
+            'magnitude': earthquake.magnitude,
+            'location': earthquake.location,
+            'year': earthquake.year
+        }), 200
+    else:
+        return make_response(jsonify({'message': 'Earthquake not found'}), 404)
 
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    app.run(debug=True)
